@@ -40,6 +40,7 @@ class TradingBot:
         self.alert: str | None = None
 
     async def start(self) -> bool:
+        try:
             self.config = Config()
             if not os.path.exists(self.config.config_file):
                 print(f"{self.config.config_file} not found - open Settings in dashboard to configure.")
