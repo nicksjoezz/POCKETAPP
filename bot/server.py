@@ -250,7 +250,12 @@ def api_status():
 
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
-    resp = jsonify(_read_json(CONFIG_FILE))
+    cfg_data = _read_json(CONFIG_FILE)
+    if not cfg_data or not cfg_data.get("telegram", {}).get("channels"):
+        from bot.config import Config
+        Config(str(CONFIG_FILE))
+        cfg_data = _read_json(CONFIG_FILE)
+    resp = jsonify(cfg_data)
     resp.headers["Cache-Control"] = "no-store, max-age=0"
     return resp
 
@@ -687,11 +692,15 @@ def _ensure_logging_initialized():
 
 # ─── Entry Point ─────────────────────────────────────────────
 
-def start_server(host="0.0.0.0", port=5000):
+def start_server(host="0.0.0.0", port=None):
+    if port is None:
+        port = int(os.environ.get("PORT", 5000))
+    else:
+        port = int(os.environ.get("PORT", port))
     _ensure_logging_initialized()
     _runtime()  # start shared async loop
     _auto_connect_pocket()
     threading.Thread(target=_tail_log_file,   daemon=True, name="LogTailThread").start()
     threading.Thread(target=_broadcast_state, daemon=True, name="StateBroadcastThread").start()
-    print(f"\n  POCKET OPTION Dashboard -> http://localhost:{port}\n")
+    print(f"\n  POCKET OPTION Dashboard -> http://0.0.0.0:{port}\n")
     socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)

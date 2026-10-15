@@ -678,13 +678,29 @@ async function loadSettings() {
 function renderChannels(channels) {
   const box = $('channel-list');
   if (!box) return;
-  box.innerHTML = (channels || []).map((ch, idx) => `
-    <div class="channel-row" data-idx="${idx}">
-      <input type="checkbox" class="ch-enabled" ${ch.enabled !== false ? 'checked' : ''}>
-      <input type="text" class="form-input ch-id" value="${escHtml(ch.identifier || '')}" placeholder="Channel username or -100...">
-      <button class="btn btn-ghost btn-sm text-red" onclick="removeChannel(${idx})">✕</button>
-    </div>
-  `).join('');
+  const list = Array.isArray(channels) ? channels : [];
+  if (list.length === 0) {
+    box.innerHTML = `
+      <div class="channel-row" data-idx="0">
+        <input type="checkbox" class="ch-enabled" checked>
+        <input type="text" class="form-input ch-id" value="🔒👑 Lorenzo VIP" placeholder="Channel username or -100...">
+        <button class="btn btn-ghost btn-sm text-red" onclick="removeChannel(0)">✕</button>
+      </div>
+    `;
+    return;
+  }
+  box.innerHTML = list.map((ch, idx) => {
+    const isObj = (typeof ch === 'object' && ch !== null);
+    const enabled = isObj ? (ch.enabled !== false) : true;
+    const identifier = isObj ? (ch.identifier ?? '') : ch;
+    return `
+      <div class="channel-row" data-idx="${idx}">
+        <input type="checkbox" class="ch-enabled" ${enabled ? 'checked' : ''}>
+        <input type="text" class="form-input ch-id" value="${escHtml(identifier)}" placeholder="Channel username or -100...">
+        <button class="btn btn-ghost btn-sm text-red" onclick="removeChannel(${idx})">✕</button>
+      </div>
+    `;
+  }).join('');
 }
 
 function addChannel() {

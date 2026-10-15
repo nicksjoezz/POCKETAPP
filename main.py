@@ -40,12 +40,10 @@ class TradingBot:
         self.alert: str | None = None
 
     async def start(self) -> bool:
-        try:
-            if not os.path.exists('config.json'):
-                print("config.json not found - open Settings in dashboard to configure.")
-                return False
-
             self.config = Config()
+            if not os.path.exists(self.config.config_file):
+                print(f"{self.config.config_file} not found - open Settings in dashboard to configure.")
+                return False
             self._setup_logging()
             self.logger = logging.getLogger(__name__)
             self.logger.info("=== Pocket Option Telegram Trading Bot Starting ===")
@@ -267,4 +265,5 @@ class TradingBot:
 
 if __name__ == "__main__":
     from bot.server import start_server
-    start_server(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    start_server(host="0.0.0.0", port=port)

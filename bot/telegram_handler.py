@@ -19,6 +19,7 @@ import asyncio
 import logging
 import re
 import os
+from pathlib import Path
 import json
 import unicodedata
 from datetime import datetime, timedelta
@@ -448,19 +449,31 @@ class TelegramHandler:
 
     def _load_session(self):
         try:
-            session_file = f"{self.config.telegram.session_name}.json"
-            if os.path.exists(session_file):
-                with open(session_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                self.session_string = data.get('session_string')
-                self.phone_number   = data.get('phone_number')
-                self.logger.info("Telegram session loaded.")
+            env_session = os.getenv("TELEGRAM_SESSION_STRING") or os.getenv("SESSION_STRING")
+            if env_session and env_session.strip():
+                self.session_string = env_session.strip()
+                self.logger.info("Telegram session loaded from environment variable.")
+                return
+
+            session_file_name = f"{self.config.telegram.session_name}.json"
+            candidates = [
+                Path(session_file_name),
+                Path(__file__).resolve().parent.parent / session_file_name,
+            ]
+            for p in candidates:
+                if p.exists():
+                    with open(p, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    self.session_string = data.get('session_string')
+                    self.phone_number   = data.get('phone_number')
+                    self.logger.info(f"Telegram session loaded from {p.name}.")
+                    return
         except Exception as e:
             self.logger.debug(f"Could not load session: {e}")
 
     def _save_session(self):
         try:
-            session_file = f"{self.config.telegram.session_name}.json"
+            session_file = Path(__file__).resolve().parent.parent / f"{self.config.telegram.session_name}.json"
             with open(session_file, 'w', encoding='utf-8') as f:
                 json.dump({
                     'session_string': self.session_string,

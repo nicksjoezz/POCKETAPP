@@ -4,6 +4,7 @@ Configuration management for the Pocket Option Telegram Trading Bot
 
 import json
 import os
+from pathlib import Path
 from dataclasses import dataclass, field
 import logging
 from typing import Optional, Union, List
@@ -59,11 +60,18 @@ class LoggingConfig:
     log_file: str = "pocket_bot.log"
 
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG_FILE = BASE_DIR / "config.json"
+
+
 class Config:
     """Main configuration class"""
 
-    def __init__(self, config_file: str = "config.json"):
-        self.config_file = config_file
+    def __init__(self, config_file: Optional[str] = None):
+        if config_file:
+            self.config_file = str(Path(config_file).resolve())
+        else:
+            self.config_file = str(DEFAULT_CONFIG_FILE)
         self.logger = logging.getLogger(__name__)
         self._load_config()
 
@@ -75,24 +83,46 @@ class Config:
 
                 po_data = config_data.get('pocket_option', {})
                 self.pocket_option = PocketOptionConfig(
-                    ssid=po_data.get('ssid', ''),
+                    ssid=os.getenv("POCKET_OPTION_SSID") or po_data.get('ssid', ''),
                     is_demo=po_data.get('is_demo', True),
                     early_entry_seconds=float(po_data.get('early_entry_seconds', 1.0)),
                     late_entry_grace_seconds=float(po_data.get('late_entry_grace_seconds', 5.0)),
-                    timezone=str(po_data.get('timezone', 'UTC-4')),
+                    timezone=str(os.getenv("TIMEZONE") or po_data.get('timezone', 'UTC-4')),
                 )
 
                 tg_data = config_data.get('telegram', {})
-                channels = [
-                    ChannelConfig(
-                        enabled=c.get('enabled', True),
-                        identifier=c.get('identifier', ''),
-                    )
-                    for c in tg_data.get('channels', [])
-                ]
+                channels = []
+                for c in tg_data.get('channels', []):
+                    if isinstance(c, dict):
+                        ident = c.get('identifier', '')
+                        if ident:
+                            channels.append(ChannelConfig(
+                                enabled=bool(c.get('enabled', True)),
+                                identifier=ident,
+                            ))
+                    elif isinstance(c, (str, int)) and str(c).strip():
+                        channels.append(ChannelConfig(
+                            enabled=True,
+                            identifier=c,
+                        ))
+
+                # Environment variable fallback (useful for Railway / cloud deployment)
+                if not channels:
+                    env_channels = os.getenv("TELEGRAM_CHANNELS") or os.getenv("TELEGRAM_CHANNEL")
+                    if env_channels:
+                        for ch in env_channels.split(","):
+                            ch = ch.strip()
+                            if ch:
+                                channels.append(ChannelConfig(enabled=True, identifier=ch))
+
+                api_id_env = os.getenv("TELEGRAM_API_ID")
+                api_id_val = tg_data.get('api_id')
+                if api_id_env and api_id_env.isdigit():
+                    api_id_val = int(api_id_env)
+
                 self.telegram = TelegramConfig(
-                    api_id=tg_data.get('api_id'),
-                    api_hash=tg_data.get('api_hash', ''),
+                    api_id=api_id_val,
+                    api_hash=os.getenv("TELEGRAM_API_HASH") or tg_data.get('api_hash', ''),
                     session_name=tg_data.get('session_name', 'pocket_bot_session'),
                     channels=channels,
                 )
@@ -120,14 +150,34 @@ class Config:
 
         except Exception as e:
             self.logger.error(f"Error loading configuration: {e}")
-            self._create_default_config()
+            if not hasattr(self, 'telegram'):
+                self._create_default_config()
 
     def _create_default_config(self):
-        self.pocket_option = PocketOptionConfig()
-        self.telegram      = TelegramConfig()
-        self.trading       = TradingConfig()
-        self.logging       = LoggingConfig()
-        self.save_config()
+        default_ssid = os.getenv("POCKET_OPTION_SSID", "")
+        default_tz = os.getenv("TIMEZONE", "UTC-4")
+        self.pocket_option = PocketOptionConfig(ssid=default_ssid, timezone=default_tz)
+
+        env_channels = os.getenv("TELEGRAM_CHANNELS") or os.getenv("TELEGRAM_CHANNEL") or "🔒👑 Lorenzo VIP"
+        ch_list = []
+        for ch in env_channels.split(","):
+            ch = ch.strip()
+            if ch:
+                ch_list.append(ChannelConfig(enabled=True, identifier=ch))
+
+        api_id_env = os.getenv("TELEGRAM_API_ID")
+        self.telegram = TelegramConfig(
+            api_id=int(api_id_env) if api_id_env and api_id_env.isdigit() else 20068122,
+            api_hash=os.getenv("TELEGRAM_API_HASH", "28a2c1b0cd1c6d3770b7df0048ee7a36"),
+            session_name="pocket_bot_session",
+            channels=ch_list,
+        )
+        self.trading = TradingConfig()
+        self.logging = LoggingConfig()
+        try:
+            self.save_config()
+        except Exception as e:
+            self.logger.warning(f"Could not persist default config: {e}")
 
     def save_config(self):
         try:
