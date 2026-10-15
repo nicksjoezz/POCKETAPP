@@ -29,7 +29,7 @@
     "martingale_enabled": true,
     "martingale_multiplier": 2.0,
     "martingale_steps": 3,
-    "martingale_cycles": 3
+    "martingale_cycles": 1
   },
   "logging": {
     "log_level": "INFO",
