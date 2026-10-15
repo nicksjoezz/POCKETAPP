@@ -1,6 +1,6 @@
 {
   "pocket_option": {
-    "ssid": "42[\"auth\",{\"session\":\"sj0778kb6ddlq1a9sdageonq1k\",\"isDemo\":1,\"uid\":140296853,\"platform\":2,\"isFastHistory\":true,\"isOptimized\":true}]",
+    "ssid": "",
     "is_demo": true,
     "wait_between_trades": 10,
     "early_entry_seconds": 1.0,
@@ -8,8 +8,8 @@
     "timezone": "UTC-4"
   },
   "telegram": {
-    "api_id": 20068122,
-    "api_hash": "28a2c1b0cd1c6d3770b7df0048ee7a36",
+    "api_id": 00000000,
+    "api_hash": "000000000000000000000",
     "session_name": "pocket_bot_session",
     "channels": [
       {
