@@ -479,6 +479,26 @@ function setConnBadge(hdrId, settId, ok, name) {
     sett.className = 'conn-badge ' + stateCls;
     sett.innerHTML = `<div class="status-dot"></div>${label}`;
   }
+
+  if (name === 'Telegram') {
+    const btn = $('btn-tg-connect');
+    if (btn) {
+      if (ok) {
+        btn.textContent = 'Disconnect';
+        btn.classList.add('text-red');
+      } else {
+        btn.textContent = 'Connect';
+        btn.classList.remove('text-red');
+      }
+    }
+  }
+
+  if (name === 'Pocket Option') {
+    const btn = $('btn-po-connect');
+    if (btn) {
+      btn.textContent = ok ? 'Reconnect' : 'Connect';
+    }
+  }
 }
 
 // ── Apply State ───────────────────────────────────────────
@@ -513,7 +533,21 @@ function showTgStep(step) {
 }
 
 function initTelegramModal() {
-  $('btn-tg-connect')?.addEventListener('click', () => {
+  $('btn-tg-connect')?.addEventListener('click', async () => {
+    const btn = $('btn-tg-connect');
+    if (btn && btn.textContent.trim().toLowerCase() === 'disconnect') {
+      if (!confirm('Are you sure you want to disconnect Telegram?')) return;
+      try {
+        const res = await api('/api/telegram/disconnect', 'POST');
+        if (res.success) {
+          showToast('Telegram disconnected', 'info');
+          fetchStatus();
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      }
+      return;
+    }
     showTgStep('phone');
     openModal('modal-telegram');
   });
@@ -805,13 +839,22 @@ async function saveSettings() {
 // ── Modal helpers ─────────────────────────────────────────
 function openModal(id) {
   const m = $(id);
-  if (m) m.classList.add('active');
+  if (m) {
+    m.classList.add('active', 'open');
+  }
 }
 
 function closeModal(id) {
   const m = $(id);
-  if (m) m.classList.remove('active');
+  if (m) {
+    m.classList.remove('active', 'open');
+  }
 }
+
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.showTgStep = showTgStep;
+window.showPoStep = showPoStep;
 
 function initModalCloseHandlers() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
